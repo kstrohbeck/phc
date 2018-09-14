@@ -1,0 +1,10 @@
+cargo-features = ["edition"]
+
+[package]
+name = "phc"
+version = "0.1.0"
+authors = ["Kyle Strohbeck <kstrohbeck@gmail.com>"]
+license = "MIT"
+edition = "2018"
+
+[dependencies]
