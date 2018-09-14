@@ -68,15 +68,13 @@ macro_rules! salt_from_array_ref {
         $(
             impl From<&[u8; $n]> for Salt {
                 fn from(binary: &[u8; $n]) -> Salt {
-                    let x: &[u8] = &binary[..];
-                    Salt::Binary(x.into())
+                    Salt::Binary(binary.to_vec())
                 }
             }
 
             impl From<[u8; $n]> for Salt {
                 fn from(binary: [u8; $n]) -> Salt {
-                    let x: &[u8] = &binary[..];
-                    Salt::Binary(x.into())
+                    Salt::Binary(binary.to_vec())
                 }
             }
         )*
