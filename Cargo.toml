@@ -4,7 +4,9 @@ cargo-features = ["edition"]
 name = "phc"
 version = "0.1.0"
 authors = ["Kyle Strohbeck <kstrohbeck@gmail.com>"]
+description = "PHC string encoding/decoding library."
 license = "MIT"
+repository = "https://github.com/kstrohbeck/phc"
 edition = "2018"
 
 [dependencies]
