@@ -82,7 +82,7 @@ pub struct RawPHC {
 
     /// A list of key-value pairs that describe the parameters that the hash
     /// function should use.
-    pub params: Vec<(String, String)>,
+    params: Vec<(String, String)>,
 
     /// The salt and hash encoded in this PHC.
     salt_and_hash: SaltAndHash,
@@ -141,7 +141,7 @@ impl FromStr for RawPHC {
 
 #[cfg(test)]
 mod tests {
-    use super::{RawPHC, Salt};
+    use super::RawPHC;
 
     mod params {
         type Entry<'a> = (&'a str, &'a [(&'a str, &'a str)]);
