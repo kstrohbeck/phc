@@ -23,15 +23,15 @@ impl Salt {
     /// ```
     /// use phc::Salt;
     /// let salt = Salt::from("c29tZSBzYWx0");
-    /// assert_eq!(salt.as_binary(), Salt::from(b"some salt"));
+    /// assert_eq!(salt.into_binary(), Salt::from(b"some salt"));
     /// ```
     /// If the salt is invalid ascii, it's returned without change.
     /// ```
     /// use phc::Salt;
     /// let salt = Salt::from("Not salt!");
-    /// assert_eq!(salt.clone().as_binary(), salt);
+    /// assert_eq!(salt.clone().into_binary(), salt);
     /// ```
-    pub fn as_binary(self) -> Salt {
+    pub fn into_binary(self) -> Salt {
         use self::Salt::*;
         match self {
             Ascii(ascii) => match decode_config(&ascii, STANDARD_NO_PAD) {
@@ -115,18 +115,18 @@ mod tests {
     #[test]
     fn base_64_ascii_salt_converts_to_binary() {
         let salt = Salt::from("c29tZSBzYWx0");
-        assert_eq!(salt.as_binary(), Salt::from(b"some salt"));
+        assert_eq!(salt.into_binary(), Salt::from(b"some salt"));
     }
 
     #[test]
     fn binary_ascii_salt_to_binary_is_same() {
         let salt = Salt::from(b"some salt");
-        assert_eq!(salt.clone().as_binary(), salt);
+        assert_eq!(salt.clone().into_binary(), salt);
     }
 
     #[test]
     fn non_base_64_ascii_doesnt_convert_to_binary() {
         let salt = Salt::from("Not base64!!!");
-        assert_eq!(salt.clone().as_binary(), salt);
+        assert_eq!(salt.clone().into_binary(), salt);
     }
 }
