@@ -40,7 +40,7 @@ impl SaltAndHash {
             Some((salt, None)) => Salt(salt.into()),
             Some((salt, Some(hash))) => Both {
                 salt: salt.into(),
-                hash: hash.into(),
+                hash,
             },
         }
     }
@@ -68,8 +68,8 @@ impl fmt::Display for SaltAndHash {
         use self::SaltAndHash::*;
         match self {
             Neither => Ok(()),
-            Salt(salt) => write!(f, "{}", salt),
-            Both { salt, hash } => write!(f, "{}${}", salt, encode_config(hash, STANDARD_NO_PAD)),
+            Salt(salt) => write!(f, "${}", salt),
+            Both { salt, hash } => write!(f, "${}${}", salt, encode_config(hash, STANDARD_NO_PAD)),
         }
     }
 }
@@ -91,7 +91,7 @@ pub struct RawPHC {
 impl fmt::Display for RawPHC {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "${}", self.id)?;
-        if self.params.len() > 0 {
+        if !self.params.is_empty() {
             write!(f, "$")?;
             let (k, v) = &self.params[0];
             write!(f, "{}={}", k, v)?;
@@ -140,4 +140,42 @@ impl FromStr for RawPHC {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse_phc(s).map_err(|_| ())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RawPHC;
+
+    macro_rules! parse_iso_test {
+        ($name:ident, $raw:expr) => {
+            #[test]
+            fn $name() {
+                let raw = String::from($raw);
+                let phc: RawPHC = raw.parse().unwrap();
+                assert_eq!(raw, phc.to_string());
+            }
+        };
+    }
+
+    parse_iso_test!(param_string_no_params_is_iso, "$abc-123");
+    parse_iso_test!(param_string_one_param_is_iso, "$abc-123$i=10000");
+    parse_iso_test!(param_string_two_params_is_iso, "$abc-123$i=10000,mem=heap");
+    parse_iso_test!(salt_string_no_params_is_iso, "$abc-123$abcdefg");
+    parse_iso_test!(salt_string_one_param_is_iso, "$abc-123$i=10000$abcdefg");
+    parse_iso_test!(
+        salt_string_two_params_is_iso,
+        "$abc-123$i=10000,mem=heap$abcdefg"
+    );
+    parse_iso_test!(
+        heap_string_no_params_is_iso,
+        "$abc-123$abcdefg$c29tZSBzYWx0"
+    );
+    parse_iso_test!(
+        heap_string_one_param_is_iso,
+        "$abc-123$i=10000$abcdefg$c29tZSBzYWx0"
+    );
+    parse_iso_test!(
+        heap_string_two_params_is_iso,
+        "$abc-123$i=10000,mem=heap$abcdefg$c29tZSBzYWx0"
+    );
 }
