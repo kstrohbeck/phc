@@ -7,51 +7,11 @@
 //! string format and a hash function specific format that knows how to perform
 //! actions.
 
+use super::parser::parse_phc;
+use super::salt::Salt;
+use base64::{encode_config, STANDARD_NO_PAD};
 use std::fmt;
-
-/// Salt value used in hashing.
-#[derive(Debug, PartialEq)]
-pub enum Salt {
-    /// A string with characters in the range [a-zA-Z0-9/+.-].
-    Ascii(String),
-
-    /// A binary value encoded as Base64.
-    Binary(Vec<u8>),
-}
-
-impl From<String> for Salt {
-    fn from(ascii: String) -> Salt {
-        Salt::Ascii(ascii)
-    }
-}
-
-impl From<&str> for Salt {
-    fn from(ascii: &str) -> Salt {
-        Salt::Ascii(ascii.into())
-    }
-}
-
-impl From<Vec<u8>> for Salt {
-    fn from(binary: Vec<u8>) -> Salt {
-        Salt::Binary(binary)
-    }
-}
-
-impl From<&[u8]> for Salt {
-    fn from(binary: &[u8]) -> Salt {
-        Salt::Binary(binary.into())
-    }
-}
-
-impl fmt::Display for Salt {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Salt::Ascii(ascii) => write!(f, "${}", ascii),
-            // TODO: Base64 encode this.
-            Salt::Binary(_binary) => write!(f, "$???",),
-        }
-    }
-}
+use std::str::FromStr;
 
 /// Salt and hash information stored in the PHC string.
 #[derive(Debug, PartialEq)]
@@ -84,6 +44,34 @@ impl SaltAndHash {
             },
         }
     }
+
+    pub(crate) fn salt(&self) -> Option<&Salt> {
+        use self::SaltAndHash::*;
+        match self {
+            Neither => None,
+            Salt(salt) => Some(salt),
+            Both { salt, .. } => Some(salt),
+        }
+    }
+
+    pub(crate) fn hash(&self) -> Option<&[u8]> {
+        use self::SaltAndHash::*;
+        match self {
+            Both { hash, .. } => Some(&hash),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for SaltAndHash {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::SaltAndHash::*;
+        match self {
+            Neither => Ok(()),
+            Salt(salt) => write!(f, "{}", salt),
+            Both { salt, hash } => write!(f, "{}${}", salt, encode_config(hash, STANDARD_NO_PAD)),
+        }
+    }
 }
 
 /// A parsed PHC string that has not been associated with a hash function.
@@ -97,7 +85,22 @@ pub struct RawPHC {
     pub params: Vec<(String, String)>,
 
     /// The salt and hash encoded in this PHC.
-    pub salt_and_hash: SaltAndHash,
+    salt_and_hash: SaltAndHash,
+}
+
+impl fmt::Display for RawPHC {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "${}", self.id)?;
+        if self.params.len() > 0 {
+            write!(f, "$")?;
+            let (k, v) = &self.params[0];
+            write!(f, "{}={}", k, v)?;
+            for (k, v) in &self.params[1..] {
+                write!(f, ",{}={}", k, v)?;
+            }
+        }
+        write!(f, "{}", self.salt_and_hash)
+    }
 }
 
 impl RawPHC {
@@ -113,15 +116,129 @@ impl RawPHC {
             salt_and_hash,
         }
     }
+
+    pub fn params(&self) -> Vec<(&str, &str)> {
+        self.params.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect()
+    }
+
+    pub fn salt(&self) -> Option<&Salt> {
+        self.salt_and_hash.salt()
+    }
+
+    pub fn hash(&self) -> Option<&[u8]> {
+        self.salt_and_hash.hash()
+    }
+}
+
+impl FromStr for RawPHC {
+    // TODO: Have a better error type.
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_phc(s).map_err(|_| ())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Salt;
+    use super::{RawPHC, Salt};
 
-    #[test]
-    fn ascii_salt_serializes() {
-        let salt = Salt::from("abcdefg");
-        assert_eq!(format!("{}", salt), "$abcdefg");
+    mod params {
+        type Entry<'a> = (&'a str, &'a [(&'a str, &'a str)]);
+        pub(crate) const NONE: Entry = ("", &[]);
+        pub(crate) const ONE: Entry = ("$i=10000", &[("i", "10000")]);
+        pub(crate) const TWO: Entry = ("$i=10000,mem=heap", &[("i", "10000"), ("mem", "heap")]);
     }
+
+    mod salt_and_hash {
+        type Entry<'a> = (&'a str, Option<&'a str>, Option<&'a [u8]>);
+        pub(crate) const NEITHER: Entry = ("", None, None);
+        pub(crate) const SALT: Entry = ("$abcdefg", Some("abcdefg"), None);
+        pub(crate) const BOTH: Entry = ("$abcdefg$aGVsbG8", Some("abcdefg"), Some(b"hello"));
+    }
+
+    macro_rules! test_phc {
+        ($name:ident, $id:expr, $params:expr, $salt_and_hash:expr $(,)*) => {
+            #[test]
+            fn $name() {
+                let raw = format!("${}{}{}", $id, $params.0, $salt_and_hash.0);
+                println!("{}", raw);
+                let phc: RawPHC = raw.parse().unwrap();
+                assert_eq!(phc.id, $id);
+                assert_eq!(phc.params(), $params.1);
+                // TODO: This feels like it could be written more eloquently.
+                match phc.salt() {
+                    None => assert_eq!(None, $salt_and_hash.1),
+                    Some(salt) => {
+                        let salt_str = salt.to_string();
+                        assert_eq!(Some(salt_str.as_str()), $salt_and_hash.1);
+                    }
+                }
+                assert_eq!(phc.hash(), $salt_and_hash.2);
+            }
+        };
+    }
+
+    test_phc!(
+        param_string_no_params,
+        "abc-123",
+        params::NONE,
+        salt_and_hash::NEITHER,
+    );
+
+    test_phc!(
+        param_string_one_param,
+        "abc-123",
+        params::ONE,
+        salt_and_hash::NEITHER,
+    );
+
+    test_phc!(
+        param_string_two_params,
+        "abc-123",
+        params::TWO,
+        salt_and_hash::NEITHER,
+    );
+
+    test_phc!(
+        salt_string_no_params,
+        "abc-123",
+        params::NONE,
+        salt_and_hash::SALT,
+    );
+
+    test_phc!(
+        salt_string_one_param,
+        "abc-123",
+        params::ONE,
+        salt_and_hash::SALT,
+    );
+
+    test_phc!(
+        salt_string_two_params,
+        "abc-123",
+        params::TWO,
+        salt_and_hash::SALT,
+    );
+
+    test_phc!(
+        hash_string_no_params,
+        "abc-123",
+        params::NONE,
+        salt_and_hash::BOTH,
+    );
+
+    test_phc!(
+        hash_string_one_param,
+        "abc-123",
+        params::ONE,
+        salt_and_hash::BOTH,
+    );
+
+    test_phc!(
+        hash_string_two_params,
+        "abc-123",
+        params::TWO,
+        salt_and_hash::BOTH,
+    );
 }
