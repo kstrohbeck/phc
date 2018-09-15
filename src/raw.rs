@@ -118,7 +118,10 @@ impl RawPHC {
     }
 
     pub fn params(&self) -> Vec<(&str, &str)> {
-        self.params.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect()
+        self.params
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect()
     }
 
     pub fn salt(&self) -> Option<&Salt> {
