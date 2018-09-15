@@ -1,3 +1,7 @@
+//! # Salt
+//!
+//! Enum containing salt values (ASCII or binary.)
+
 use base64::{decode_config, encode_config, STANDARD_NO_PAD};
 use std::fmt;
 
@@ -81,10 +85,7 @@ macro_rules! salt_from_array_ref {
     }
 }
 
-salt_from_array_ref!(
-    0, 1, 2, 3, 4, 5, 6, 7, 8,
-    9, 10, 11, 12, 13, 14, 15, 16,
-);
+salt_from_array_ref!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 
 impl fmt::Display for Salt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
