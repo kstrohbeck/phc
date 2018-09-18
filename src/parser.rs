@@ -121,7 +121,7 @@ mod tests {
                 let raw = format!("${}{}{}", $id, $params.0, $salt_and_hash.0);
                 println!("{}", raw);
                 let phc: RawPHC = parse_phc(&raw).unwrap();
-                assert_eq!(phc.id, $id);
+                assert_eq!(phc.id(), $id);
                 assert_eq!(phc.params(), $params.1);
                 // TODO: This feels like it could be written more eloquently.
                 match phc.salt() {
