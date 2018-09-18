@@ -78,7 +78,7 @@ impl fmt::Display for SaltAndHash {
 #[derive(Debug)]
 pub struct RawPHC {
     /// The id of the hash function that this PHC string describes.
-    pub id: String,
+    id: String,
 
     /// A list of key-value pairs that describe the parameters that the hash
     /// function should use.
@@ -115,6 +115,10 @@ impl RawPHC {
             params: params.into(),
             salt_and_hash,
         }
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn params(&self) -> Vec<(&str, &str)> {
