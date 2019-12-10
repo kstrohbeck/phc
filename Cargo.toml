@@ -2,7 +2,7 @@ cargo-features = ["edition"]
 
 [package]
 name = "phc"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Kyle Strohbeck <kstrohbeck@gmail.com>"]
 description = "PHC string encoding/decoding library."
 license = "MIT"
